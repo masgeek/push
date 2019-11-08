@@ -1,11 +1,13 @@
 package com.tsobu.push.service;
 
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.os.IBinder;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.Build;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -13,6 +15,7 @@ import androidx.core.app.NotificationCompat;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.tsobu.push.R;
+import com.tsobu.push.SecondActivity;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
@@ -35,28 +38,13 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         // Check if message contains a notification payload.
         if (remoteMessage.getNotification() != null) {
-            Log.d(TAG, "Message Notification Body: " + remoteMessage.getNotification().getBody());
+            String messageBody = remoteMessage.getNotification().getBody();
+            Log.d(TAG, "Message Notification Body: " + messageBody);
+            sendNotification(messageBody);
         }
 
         // Also if you intend on generating your own notifications as a result of a received FCM
         // message, here is where that should be initiated. See sendNotification method below.
-
-
-        NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-
-        Intent notificationIntent = new Intent(mContext, ACTIVITY_TO_BE_DISPLAYED.class); // Replace ACTIVITY_TO_BE_DISPLAYED to Activity to which you wanna show
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-
-        PendingIntent intent = PendingIntent.getActivity(mContext, 0, notificationIntent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext)
-                .setAutoCancel(true)
-                .setTicker("YOUR_TICKER_MSG")
-                .setSmallIcon(R.drawable.ic_notifications_active)
-                .setContentTitle("YOUR_TITLE")
-                .setContentText("YOUR_TEXT")
-                .setContentIntent(intent);
-        notificationManager.notify(10, builder.build());
     }
 
 
@@ -75,7 +63,51 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         sendRegistrationToServer(token);
     }
 
+    /**
+     * Persist token to third-party servers.
+     * <p>
+     * Modify this method to associate the user's FCM InstanceID token with any server-side account
+     * maintained by your application.
+     *
+     * @param token The new token.
+     */
     private void sendRegistrationToServer(String token) {
+        // TODO: Implement this method to send token to your app server.
+    }
 
+    /**
+     * Create and show a simple notification containing the received FCM message.
+     *
+     * @param messageBody FCM message body received.
+     */
+    private void sendNotification(String messageBody) {
+        Intent notificationIntent = new Intent(this, SecondActivity.class);
+        notificationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0 /* Request code */, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        String channelId = getString(R.string.app_name);
+        Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+
+        NotificationCompat.Builder notificationBuilder =
+                new NotificationCompat.Builder(this, channelId)
+                        .setSmallIcon(R.drawable.ic_notifications_active)
+                        .setContentTitle(getString(R.string.app_name))
+                        .setContentText(messageBody)
+                        .setAutoCancel(true)
+//                        .setSound(defaultSoundUri)
+//                        .setContentIntent(pendingIntent)
+                        .addAction(R.drawable.ic_notifications_active, "View recommendations", pendingIntent);
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        // Since android Oreo notification channel is needed.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(channelId,
+                    "Channel human readable title",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+            notificationManager.createNotificationChannel(channel);
+        }
+
+        notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
     }
 }
